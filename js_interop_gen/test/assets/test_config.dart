@@ -4,9 +4,9 @@
 // Created by `js_interop_gen`
 
 // ignore_for_file: constant_identifier_names, lines_longer_than_80_chars
+// ignore_for_file: no_leading_underscores_for_library_prefixes
 // ignore_for_file: non_constant_identifier_names, unnecessary_ignore
 
-// ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:js_interop' as _i1;
 
 @_i1.JS()
@@ -49,6 +49,7 @@ external User get user1;
 external User get user2;
 @_i1.JS()
 external User get adminUser;
+
 extension type const UserRole._(int _) {
   static const UserRole Guest = UserRole._(0);
 
@@ -58,4 +59,5 @@ extension type const UserRole._(int _) {
 
   static const UserRole Administrator = UserRole._(3);
 }
+
 typedef User = String;

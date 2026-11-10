@@ -6,6 +6,7 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
+
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/element/element.dart';
@@ -14,6 +15,7 @@ import 'package:io/ansi.dart' as ansi;
 import 'package:package_config/package_config.dart';
 
 import 'package:path/path.dart' as p;
+
 import 'sdk_version.dart';
 
 final bindingsGeneratorPath = p.fromUri(
@@ -48,6 +50,9 @@ Future<String> getPackageLanguageVersion(String pkgPath) async {
 
 Future<void> compileDartMain({String? langVersion, String? dir}) async {
   langVersion ??= await getPackageLanguageVersion(_webGeneratorRoot);
+  final workDir = dir ?? bindingsGeneratorPath;
+  final tempOutput =
+      'dart_main.js.$pid.${DateTime.now().microsecondsSinceEpoch}.tmp';
   await runProc(Platform.executable, [
     'compile',
     'js',
@@ -56,8 +61,14 @@ Future<void> compileDartMain({String? langVersion, String? dir}) async {
     '-DlanguageVersion=$langVersion',
     'dart_main.dart',
     '-o',
-    'dart_main.js',
-  ], workingDirectory: dir ?? bindingsGeneratorPath);
+    tempOutput,
+  ], workingDirectory: workDir);
+  for (final ext in ['', '.deps', '.map']) {
+    final tmpFile = File(p.join(workDir, '$tempOutput$ext'));
+    if (tmpFile.existsSync()) {
+      tmpFile.renameSync(p.join(workDir, 'dart_main.js$ext'));
+    }
+  }
 }
 
 Future<void> runNode(
@@ -157,7 +168,7 @@ Future<String> computeJsTypeSupertypes() async {
     final definedNames = dartJsInterop.exportNamespace.definedNames2;
     // `SplayTreeMap` to avoid moving types around in `dart:js_interop`
     // affecting the code generation.
-    final jsTypeSupertypes = SplayTreeMap<String, String?>();
+    final jsTypeSupertypes = SplayTreeMap<String, Set<String>>();
     for (final name in definedNames.keys) {
       final element = definedNames[name];
       if (element is ExtensionTypeElement) {
@@ -169,22 +180,20 @@ Future<String> computeJsTypeSupertypes() async {
             element.name!.startsWith('JS');
         if (!isJSType(element)) continue;
 
-        String? parentJsType;
+        final parentJsTypes = <String>{};
         final supertype = element.supertype;
         final immediateSupertypes = <InterfaceType>[
           ?supertype,
           ...element.interfaces,
         ]..removeWhere((supertype) => supertype.isDartCoreObject);
-        // We should have at most one non-trivial supertype.
-        assert(immediateSupertypes.length <= 1);
         for (final supertype in immediateSupertypes) {
           if (isJSType(supertype.element)) {
-            parentJsType = "'${supertype.element.name!}'";
+            parentJsTypes.add("'${supertype.element.name!}'");
           }
         }
-        // Ensure that the hierarchy forms a tree.
-        assert((parentJsType == null) == (name == 'JSAny'));
-        jsTypeSupertypes["'$name'"] = parentJsType;
+        // Ensure that `JSAny` is the root of the hierarchy.
+        assert(parentJsTypes.isEmpty == (name == 'JSAny'));
+        jsTypeSupertypes["'$name'"] = parentJsTypes;
       }
     }
 
@@ -197,8 +206,8 @@ Future<String> computeJsTypeSupertypes() async {
 // Generated from Dart SDK ${Platform.version.split(' ').first}
 // To update run: dart run js_interop_gen/tool/update_supertypes.dart
 
-const Map<String, String?> jsTypeSupertypes = {
-${jsTypeSupertypes.entries.map((e) => "  ${e.key}: ${e.value},").join('\n')}
+const Map<String, Set<String>> jsTypeSupertypes = {
+${jsTypeSupertypes.entries.map((e) => "  ${e.key}: {${e.value.join(', ')}},").join('\n')}
 };
 ''';
   } finally {
