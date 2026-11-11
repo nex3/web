@@ -1,4 +1,4 @@
-# A workflow to allow other workflow to comment on PRs.
+# A CI configuration to write comments on PRs.
 
 name: Comment on the pull request
 permissions:
@@ -10,12 +10,12 @@ on:
   # the original workflow couldn't.
   workflow_run: # zizmor: ignore[dangerous-triggers]
     workflows:
-      - Publish
+      - Health
     types:
       - completed
 
 jobs:
   upload:
-    uses: dart-lang/ecosystem/.github/workflows/post_summaries.yaml@fc3dd9a17a8e18b3b4aa5abac8a0f4a679fe2d57
+    uses: dart-lang/ecosystem/.github/workflows/post_summaries.yaml@27c2fc841818cce349e1f424af51cca9ea381f47 # main
     permissions:
       pull-requests: write

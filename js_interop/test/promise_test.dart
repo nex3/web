@@ -5,9 +5,8 @@
 import 'dart:async';
 import 'dart:js_interop';
 
-import 'package:test/test.dart';
-
 import 'package:js_interop/js_interop.dart';
+import 'package:test/test.dart';
 
 void main() {
   group('catchError', () {

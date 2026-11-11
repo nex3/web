@@ -4,8 +4,11 @@
 
 import 'dart:convert';
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
+import 'package:js_interop/js_interop.dart';
 import 'package:path/path.dart' as p;
+
 import 'js/filesystem_api.dart';
 import 'js/webidl2.dart' as webidl2;
 import 'js/webidl_api.dart' as webidl;
@@ -13,15 +16,22 @@ import 'js/webref_css_api.dart';
 import 'js/webref_elements_api.dart';
 import 'js/webref_idl_api.dart';
 import 'translator.dart';
-import 'util.dart';
 
 /// Generate CSS property names for setting / getting CSS properties in JS.
-Future<List<String>> _generateCSSStyleDeclarations([JSObject? data]) async {
+Future<List<String>> _generateCSSStyleDeclarations([
+  JSRecord<CSSEntries>? data,
+]) async {
   final cssStyleDeclarations = <String>{};
-  final array = objectEntries(data ?? await css.listAll().toDart);
-  for (var i = 0; i < array.length; i++) {
-    final entry = array[i] as JSArray<CSSEntries>;
-    final data = entry[1];
+  final allData = data ?? await css.listAll().toDart;
+  // `@webref/css` 7+ returns a single object of consolidated arrays, while
+  // `@webref/css` 6 (still pinned in `web_generator/package.json` until the
+  // spec roll) returns a record of per-spec entries.
+  // TODO(kevmoo): Drop the `< 7` fallback once `web_generator/package.json`
+  // rolls to `@webref/css` 8+.
+  final entries = (allData as JSObject).has('properties')
+      ? [allData as CSSEntries]
+      : allData.values;
+  for (final data in entries) {
     final properties = data.properties;
     if (properties != null) {
       for (var j = 0; j < properties.length; j++) {
@@ -53,13 +63,10 @@ Future<List<String>> _generateCSSStyleDeclarations([JSObject? data]) async {
 /// Parse the elements spec and construct a map of element interfaces to the
 /// tag names that correspond to the interface.
 Future<Map<String, Set<String>>> _generateElementTagMap([
-  JSObject? data,
+  JSRecord<ElementsEntries>? data,
 ]) async {
   final elementMap = <String, Set<String>>{};
-  final array = objectEntries(data ?? await elements.listAll().toDart);
-  for (var i = 0; i < array.length; i++) {
-    final entry = array[i] as JSArray;
-    final data = entry[1] as ElementsEntries;
+  for (final data in (data ?? await elements.listAll().toDart).values) {
     final elements = data.elements;
     if (elements != null) {
       for (var j = 0; j < elements.length; j++) {
@@ -85,34 +92,29 @@ Future<(TranslationResult, Map<String, String>)> generateBindings(
   var renameMap = <String, String>{};
   if (renameMapPath != null) {
     if (fs.existsSync(renameMapPath.toJS).toDart) {
-      final jsonStr =
-          (fs.readFileSync(
-                    renameMapPath.toJS,
-                    JSReadFileOptions(encoding: 'utf8'.toJS),
-                  )
-                  as JSString)
-              .toDart;
+      final jsonStr = (fs.readFileSync(
+        renameMapPath.toJS,
+        JSReadFileOptions(encoding: 'utf8'.toJS),
+      ) as JSString).toDart;
       final json = jsonDecode(jsonStr) as Map<String, dynamic>;
       renameMap = json.map((k, v) => MapEntry(k, v as String));
     }
   }
-  JSObject? idlData;
-  JSObject? cssData;
-  JSObject? elementsData;
+  JSRecord<JSArray<webidl.Node>>? idlData;
+  JSRecord<CSSEntries>? cssData;
+  JSRecord<ElementsEntries>? elementsData;
 
   if (idlJsonPath != null) {
-    final jsonStr =
-        (fs.readFileSync(
-                  idlJsonPath.toJS,
-                  JSReadFileOptions(encoding: 'utf8'.toJS),
-                )
-                as JSString)
-            .toDart;
+    final jsonStr = (fs.readFileSync(
+      idlJsonPath.toJS,
+      JSReadFileOptions(encoding: 'utf8'.toJS),
+    ) as JSString).toDart;
     final json = jsonDecode(jsonStr) as Map<String, dynamic>;
 
-    idlData = (json['idl'] as Map?)?.jsify() as JSObject?;
-    cssData = (json['css'] as Map?)?.jsify() as JSObject?;
-    elementsData = (json['elements'] as Map?)?.jsify() as JSObject?;
+    idlData = (json['idl'] as Map?)?.jsify() as JSRecord<JSArray<webidl.Node>>?;
+    cssData = (json['css'] as Map?)?.jsify() as JSRecord<CSSEntries>?;
+    elementsData =
+        (json['elements'] as Map?)?.jsify() as JSRecord<ElementsEntries>?;
   }
 
   final cssStyleDeclarations = await _generateCSSStyleDeclarations(cssData);
@@ -127,22 +129,9 @@ Future<(TranslationResult, Map<String, String>)> generateBindings(
     bcdJsonPath: bcdJsonPath,
   );
 
-  if (idlData != null) {
-    final array = objectEntries(idlData);
-    for (var i = 0; i < array.length; i++) {
-      final entry = array[i] as JSArray<JSAny?>;
-      final shortname = (entry[0] as JSString).toDart;
-      final ast = entry[1] as JSArray<webidl.Node>;
-      translator.collect(shortname, ast);
-    }
-  } else {
-    final array = objectEntries(await idl.parseAll().toDart);
-    for (var i = 0; i < array.length; i++) {
-      final entry = array[i] as JSArray<JSAny?>;
-      final shortname = (entry[0] as JSString).toDart;
-      final ast = entry[1] as JSArray<webidl.Node>;
-      translator.collect(shortname, ast);
-    }
+  for (final (shortname, ast)
+      in (idlData ?? await idl.parseAll().toDart).pairs) {
+    translator.collect(shortname, ast);
   }
 
   translator.addInterfacesAndNamespaces();
@@ -159,11 +148,8 @@ Future<TranslationResult> generateBindingsForFiles(
 }) async {
   // generate CSS style declarations and element tag map incase they are
   // needed for the input files.
-  final emptyJsObject = <String, dynamic>{}.jsify() as JSObject;
-  final cssStyleDeclarations = await _generateCSSStyleDeclarations(
-    emptyJsObject,
-  );
-  final elementHTMLMap = await _generateElementTagMap(emptyJsObject);
+  final cssStyleDeclarations = await _generateCSSStyleDeclarations(JSRecord());
+  final elementHTMLMap = await _generateElementTagMap(JSRecord());
   final translator = Translator(
     output,
     cssStyleDeclarations,
