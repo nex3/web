@@ -21,19 +21,20 @@ extension type JSAsyncDisposableProtocol._(JSObject _) implements JSObject {
   JSPromise<Null> asyncDispose() => callMethod(_asyncDispose);
 }
 
-/// An extension for [JSAsyncDisposableProtocol] to provide an analog to JavaScript's
-/// `await using` declaration.
+/// An extension for [JSAsyncDisposableProtocol] to provide an analog to
+/// JavaScript's `await using` declaration.
 extension JSAsyncDisposableUse<T extends JSAsyncDisposableProtocol> on T {
-  /// Passes [this] to [callback] and disposes of it after the callback
+  /// Passes `this` to [callback] and disposes of it after the callback
   /// completes (even if it produces an error).
   ///
-  /// If [callback] returns a `Future`, [this] is instead disposed after that
+  /// If [callback] returns a `Future`, `this` is instead disposed after that
   /// future completes.
   ///
   /// This is intended to provide similar functionality to JavaScript's [`await
   /// using`] declaration. It's recommended that the variable passed to the
-  /// callback be the only binding for this [AsyncDisposable] so that it's
-  /// guaranteed to be disposed if and only if it can't be referenced. For example:
+  /// callback be the only binding for this [JSAsyncDisposableProtocol] so that
+  /// it's guaranteed to be disposed if and only if it can't be referenced. For
+  /// example:
   ///
   /// [`await using`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/await_using
   ///
