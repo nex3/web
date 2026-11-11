@@ -25,7 +25,7 @@ void main() {
     test(
       'rejected',
       () => expect(
-        Future.error('oh no').toJS
+        Future<JSAny?>.error('oh no').toJS
             .catchError(expectAsync1((JSAny? _) => 'aw beans'.toJS).toJS)
             .toDart,
         completion(equals('aw beans'.toJS)),
@@ -47,7 +47,9 @@ void main() {
     test(
       'rejected',
       () => expect(
-        Future.error('oh no').toJS.finallyCall(expectAsync0(() {}).toJS).toDart,
+        Future<JSAny?>.error('oh no').toJS
+            .finallyCall(expectAsync0(() {}).toJS)
+            .toDart,
         throwsA(anything),
       ),
     );
@@ -75,7 +77,7 @@ void main() {
       test(
         'without onRejected',
         () => expect(
-          Future.error('oh no').toJS
+          Future<JSAny?>.error('oh no').toJS
               .then(expectAsync1((JSAny? _) => 1.toJS, count: 0).toJS)
               .toDart,
           throwsA(anything),
@@ -85,7 +87,7 @@ void main() {
       test(
         'with onRejected',
         () => expect(
-          Future.error('oh no').toJS
+          Future<JSAny?>.error('oh no').toJS
               .then(
                 expectAsync1((JSAny? _) => 1.toJS, count: 0).toJS,
                 expectAsync1((JSAny? _) => 2.toJS).toJS,
