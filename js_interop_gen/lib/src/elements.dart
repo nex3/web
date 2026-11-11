@@ -119,9 +119,9 @@ RawType _getRawType(idl.IDLType idlType) {
     type = (idlType.idlType as JSString).toDart;
   }
 
-  if (type == 'WindowProxy') type = 'Window';
   if (type == 'any') nullable = true;
   final translator = Translator.instance!;
+  type = translator.resolveIdlTypeName(type);
   final decl = translator.typeToDeclaration[type];
   final alias = idlOrBuiltinToJsTypeAliases[type];
   assert(decl != null || alias != null);
@@ -129,6 +129,49 @@ RawType _getRawType(idl.IDLType idlType) {
     type = _getJSTypeEquivalent(RawType(type, false))!.type;
   }
   return RawType(alias ?? type, nullable, typeParameter);
+}
+
+const _trustedTypeNames = {
+  'TrustedHTML',
+  'TrustedScript',
+  'TrustedScriptURL',
+  'TrustedType',
+};
+
+/// If [idlType] is a union consisting only of string types (`DOMString` or
+/// `USVString`) and Trusted Types (`TrustedHTML`, `TrustedScript`,
+/// `TrustedScriptURL`, or `TrustedType`), returns `(stringType, trustedType)`.
+(RawType, RawType)? _splitTrustedStringUnion(idl.IDLType idlType) {
+  if (!idlType.union) return null;
+  final types = (idlType.idlType as JSArray<idl.IDLType>).toDart;
+  RawType? stringRaw;
+  RawType? trustedRaw;
+  for (final t in types) {
+    if (t.union || t.generic.isNotEmpty) return null;
+    final name = (t.idlType as JSString).toDart;
+    if (name == 'DOMString' || name == 'USVString') {
+      if (stringRaw == null) {
+        stringRaw = _getRawType(t);
+      } else {
+        stringRaw.update(t);
+      }
+    } else if (_trustedTypeNames.contains(name) &&
+        Translator.instance!.typeToDeclaration.containsKey(name)) {
+      if (trustedRaw == null) {
+        trustedRaw = _getRawType(t);
+      } else {
+        trustedRaw.update(t);
+      }
+    } else {
+      return null;
+    }
+  }
+  if (stringRaw == null || trustedRaw == null) return null;
+  if (trustedRaw.type == 'JSObject') return null;
+  return (
+    stringRaw..nullable |= idlType.nullable,
+    trustedRaw..nullable |= idlType.nullable,
+  );
 }
 
 class Attribute extends Property {
@@ -141,7 +184,7 @@ class Attribute extends Property {
     super.mdnProperty, {
     required this.isStatic,
     required this.isReadOnly,
-  });
+  }) : super.fromAttribute(splitTrustedUnion: !isReadOnly);
 }
 
 class Constant extends Property {
@@ -189,6 +232,9 @@ abstract class OverridableMember {
       parameters.add(Parameter(rawParameters[i]));
     }
   }
+
+  RawType? get trustedType =>
+      parameters.map((p) => p.trustedType).nonNulls.firstOrNull;
 
   void _processParameters(JSArray<idl.Argument> thoseParameters) {
     final thatLength = thoseParameters.length;
@@ -260,8 +306,12 @@ class OverridableOperation extends OverridableMember {
   MemberName _generateName() {
     _finalized = true;
     final dartName = _name.name;
-    if (dartName == returnType.type ||
-        parameters.any((parameter) => dartName == parameter.type.type)) {
+    final translator = Translator.instance!;
+    if (dartName == translator.dartClassNameFor(returnType.type) ||
+        parameters.any(
+          (parameter) =>
+              dartName == translator.dartClassNameFor(parameter.type.type),
+        )) {
       underscoreName();
     }
     return _name;
@@ -271,23 +321,48 @@ class OverridableOperation extends OverridableMember {
 class Parameter {
   final Set<String> _names;
   final RawType type;
+  RawType? trustedType;
   bool isOptional;
   bool isVariadic;
   late final String name = _generateName();
 
-  factory Parameter(idl.Argument argument) => Parameter._(
-    {argument.name},
-    _getRawType(argument.idlType),
-    argument.optional,
-    argument.variadic,
-  );
+  factory Parameter(idl.Argument argument) {
+    final split = _splitTrustedStringUnion(argument.idlType);
+    return Parameter._(
+      {argument.name},
+      split?.$1 ?? _getRawType(argument.idlType),
+      argument.optional,
+      argument.variadic,
+      trustedType: split?.$2,
+    );
+  }
 
-  Parameter._(this._names, this.type, this.isOptional, this.isVariadic);
+  Parameter._(
+    this._names,
+    this.type,
+    this.isOptional,
+    this.isVariadic, {
+    this.trustedType,
+  });
 
   void update(idl.Argument argument) {
     final thatName = argument.name;
     _names.add(thatName);
-    type.update(argument.idlType);
+    final split = _splitTrustedStringUnion(argument.idlType);
+    if (split != null) {
+      final union = _computeRawTypeUnion(type, split.$1);
+      type
+        ..type = union.type
+        ..nullable = union.nullable
+        ..typeParameter = union.typeParameter;
+      final currentTrustedType = trustedType;
+      trustedType = currentTrustedType == null
+          ? split.$2
+          : _computeRawTypeUnion(currentTrustedType, split.$2);
+    } else {
+      type.update(argument.idlType);
+      trustedType = null;
+    }
     if (argument.optional) {
       isOptional = true;
     }
@@ -491,6 +566,11 @@ class PartialInterfacelike {
     if (declaredInheritance == null) return;
     final translator = Translator.instance!;
     while (declaredInheritance != null) {
+      assert(
+        !translator.legacyWindowAliases.containsKey(declaredInheritance),
+        'Unexpected [LegacyWindowAlias] "$declaredInheritance" in '
+        'inheritance of "$name".',
+      );
       if (translator.markTypeAsUsed(declaredInheritance)) {
         inheritance = declaredInheritance;
         break;
@@ -526,13 +606,34 @@ class PartialInterfacelike {
 sealed class Property {
   late final MemberName name;
   final RawType type;
+  final RawType? trustedType;
   final MdnProperty? mdnProperty;
 
-  Property(MemberName name, idl.IDLType idlType, [this.mdnProperty])
-    : type = _getRawType(idlType) {
+  Property(MemberName name, idl.IDLType idlType, [MdnProperty? mdnProperty])
+    : this._(name, null, idlType, mdnProperty);
+
+  Property.fromAttribute(
+    MemberName name,
+    idl.IDLType idlType,
+    MdnProperty? mdnProperty, {
+    required bool splitTrustedUnion,
+  }) : this._(
+         name,
+         splitTrustedUnion ? _splitTrustedStringUnion(idlType) : null,
+         idlType,
+         mdnProperty,
+       );
+
+  Property._(
+    MemberName name,
+    (RawType, RawType)? split,
+    idl.IDLType idlType,
+    this.mdnProperty,
+  ) : type = split?.$1 ?? _getRawType(idlType),
+      trustedType = split?.$2 {
     final dartName = name.name;
     final jsName = name.jsOverride.isEmpty ? dartName : name.jsOverride;
-    this.name = dartName == type.type
+    this.name = dartName == Translator.instance!.dartClassNameFor(type.type)
         ? MemberName('${dartName}_', jsName)
         : name;
   }

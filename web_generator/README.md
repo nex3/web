@@ -22,8 +22,43 @@ To re-generate the package from newer IDL versions, you can either run:
 dart bin/update_idl_bindings.dart --update
 ```
 
-or, manually edit `lib/src/package.json` to use specific IDL versions, and
-re-run `update_idl_bindings.dart`.
+which installs the latest `@webref/*` and `@mdn/browser-compat-data` releases
+(including new major versions) into this package's `package.json`.
+
+Alternatively, manually edit `package.json` to use specific versions, and re-run
+`update_idl_bindings.dart`.
+
+### Browser engine overrides (`engine_overrides.json`)
+
+`@webref/idl` tracks latest Editor's Drafts and applies curation patches that
+occasionally diverge from what shipping browser engines (Blink, Gecko, WebKit)
+implement. `js_interop_gen/lib/src/engine_overrides.json` pins targeted AST and
+interface-visibility overrides before translation:
+
+1. **Self-pruning on roll**: `update_idl_bindings.dart` fails with a
+   `StateError` if any override in `engine_overrides.json` is unused or already
+   matches `@webref/idl` (having become a no-op). Delete those entries and
+   re-run.
+2. **Reviewing `web/tool/api.txt`**: After rolling `@webref/idl` or
+   `@mdn/browser-compat-data`, inspect `git diff web/tool/api.txt` for
+   unintended signature widenings (e.g., concrete types widened to `JSAny`,
+   `void` changed to `JSPromise` before engines ship it, or single-engine
+   interfaces enabled in BCD) and add an entry with a `"reason"` if needed.
+
+### Public API golden
+
+`web/tool/api.txt` is a [`package:api_summary`](https://pub.dev/packages/api_summary)
+summary of `package:web`'s public API, including member signatures, so API
+changes are visible in diffs. `update_idl_bindings.dart` regenerates it after
+generating the bindings, and `web/test/api_test.dart` verifies that it is up to
+date. To regenerate it manually, run the following in `web/`:
+
+```shell
+dart run api_summary --output tool/api.txt
+```
+
+The summary depends on the Dart SDK version, so regenerate it with a current
+dev or beta SDK (CI checks it on `dev`), not the minimum supported SDK.
 
 #### Updating the dartdoc info from MDN
 

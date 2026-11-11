@@ -4,6 +4,7 @@
 
 import 'dart:convert';
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
 import 'package:js_interop/js_interop.dart';
 import 'package:path/path.dart' as p;
@@ -21,7 +22,16 @@ Future<List<String>> _generateCSSStyleDeclarations([
   JSRecord<CSSEntries>? data,
 ]) async {
   final cssStyleDeclarations = <String>{};
-  for (final data in (data ?? await css.listAll().toDart).values) {
+  final allData = data ?? await css.listAll().toDart;
+  // `@webref/css` 7+ returns a single object of consolidated arrays, while
+  // `@webref/css` 6 (still pinned in `web_generator/package.json` until the
+  // spec roll) returns a record of per-spec entries.
+  // TODO(kevmoo): Drop the `< 7` fallback once `web_generator/package.json`
+  // rolls to `@webref/css` 8+.
+  final entries = (allData as JSObject).has('properties')
+      ? [allData as CSSEntries]
+      : allData.values;
+  for (final data in entries) {
     final properties = data.properties;
     if (properties != null) {
       for (var j = 0; j < properties.length; j++) {
@@ -82,13 +92,10 @@ Future<(TranslationResult, Map<String, String>)> generateBindings(
   var renameMap = <String, String>{};
   if (renameMapPath != null) {
     if (fs.existsSync(renameMapPath.toJS).toDart) {
-      final jsonStr =
-          (fs.readFileSync(
-                    renameMapPath.toJS,
-                    JSReadFileOptions(encoding: 'utf8'.toJS),
-                  )
-                  as JSString)
-              .toDart;
+      final jsonStr = (fs.readFileSync(
+        renameMapPath.toJS,
+        JSReadFileOptions(encoding: 'utf8'.toJS),
+      ) as JSString).toDart;
       final json = jsonDecode(jsonStr) as Map<String, dynamic>;
       renameMap = json.map((k, v) => MapEntry(k, v as String));
     }
@@ -98,13 +105,10 @@ Future<(TranslationResult, Map<String, String>)> generateBindings(
   JSRecord<ElementsEntries>? elementsData;
 
   if (idlJsonPath != null) {
-    final jsonStr =
-        (fs.readFileSync(
-                  idlJsonPath.toJS,
-                  JSReadFileOptions(encoding: 'utf8'.toJS),
-                )
-                as JSString)
-            .toDart;
+    final jsonStr = (fs.readFileSync(
+      idlJsonPath.toJS,
+      JSReadFileOptions(encoding: 'utf8'.toJS),
+    ) as JSString).toDart;
     final json = jsonDecode(jsonStr) as Map<String, dynamic>;
 
     idlData = (json['idl'] as Map?)?.jsify() as JSRecord<JSArray<webidl.Node>>?;
