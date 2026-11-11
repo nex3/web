@@ -1,9 +1,10 @@
 // ignore_for_file: camel_case_types, constant_identifier_names
 // ignore_for_file: library_private_types_in_public_api
-// ignore_for_file: lines_longer_than_80_chars, non_constant_identifier_names
-// ignore_for_file: unnecessary_ignore, unnecessary_parenthesis
-
+// ignore_for_file: lines_longer_than_80_chars
 // ignore_for_file: no_leading_underscores_for_library_prefixes
+// ignore_for_file: non_constant_identifier_names, unnecessary_ignore
+// ignore_for_file: unnecessary_parenthesis
+
 import 'dart:js_interop' as _i1;
 
 import '_tuples.dart' as _i2;
@@ -47,6 +48,7 @@ external _i1.JSArray<Tags> get tagArray;
 external List<_i1.JSString> get users;
 @_i1.JS()
 external Box<_i1.JSNumber> get matrix;
+
 extension type const LoggerType._(int _) {
   static const LoggerType Noop = LoggerType._(0);
 
@@ -58,6 +60,7 @@ extension type const LoggerType._(int _) {
 
   static const LoggerType Other = LoggerType._(4);
 }
+
 extension type const AnonymousUnion_2718349._(String _) {
   static const AnonymousUnion_2718349 N = AnonymousUnion_2718349._('N');
 
@@ -67,6 +70,7 @@ extension type const AnonymousUnion_2718349._(String _) {
 
   static const AnonymousUnion_2718349 W = AnonymousUnion_2718349._('W');
 }
+
 extension type const AnonymousUnion_2375200._(String _) {
   static const AnonymousUnion_2375200 GET = AnonymousUnion_2375200._('GET');
 
@@ -84,8 +88,10 @@ extension type const AnonymousUnion_2375200._(String _) {
     'OPTIONS',
   );
 }
+
 @_i1.JS('Space.Planet')
 extension type Space_Planet._(_i1.JSObject _) implements _i1.JSObject {
   external double radius;
 }
+
 typedef LoggerContainer<N extends _i1.JSNumber> = _i1.JSArray<N>;
