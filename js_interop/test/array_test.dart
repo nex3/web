@@ -182,9 +182,8 @@ void main() {
     'flatMapHeterogeneous',
     () => expect(
       _toDart(
-        array.flatMapHeterogeneous(
-          (i) => i.toDartInt % 2 == 1 ? i : [i, i].toJS,
-        ) as JSArray<JSNumber>,
+        array.flatMapHeterogeneous((i) => i.toDartInt.isOdd ? i : [i, i].toJS)
+            as JSArray<JSNumber>,
       ),
       equals([1, 2, 2, 3, 4, 4, 5]),
     ),
@@ -195,7 +194,7 @@ void main() {
     () => expect(
       _toDart(
         array.flatMapHeterogeneousWithIndex(
-          (i, index) => i.toDartInt % 2 == 1 ? i : [index.toJS, i].toJS,
+          (i, index) => i.toDartInt.isOdd ? i : [index.toJS, i].toJS,
         ) as JSArray<JSNumber>,
       ),
       equals([1, 1, 2, 3, 3, 4, 5]),

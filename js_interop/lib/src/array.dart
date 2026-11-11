@@ -6,8 +6,7 @@ import 'dart:js_interop';
 
 import 'pair.dart';
 
-/// Additional instance methods for the `dart:js_interop` [interop.JSArray]
-/// type.
+/// Additional instance methods for the `dart:js_interop` [JSArray] type.
 extension JSArrayExtension<T extends JSAny?> on JSArray<T> {
   /// Returns a Dart iterable of index/value pairs in this array.
   Iterable<(int, T)> get pairs =>
@@ -387,7 +386,7 @@ extension JSArrayExtension<T extends JSAny?> on JSArray<T> {
 }
 
 extension JSArrayOfArrayExtension<T extends JSAny?> on JSArray<JSArray<T>> {
-  /// Flattens a single layer of this array with [JSArray.flat].
+  /// Flattens a single layer of this array with [JSArrayExtension.flat].
   ///
   /// This is exposed as a separate method in order to provide a type-safe API
   /// for the most common case of flattening only one layer of nested arrays.
