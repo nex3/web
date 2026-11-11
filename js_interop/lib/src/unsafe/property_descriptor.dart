@@ -1,16 +1,16 @@
 import 'dart:js_interop';
 
+import 'object.dart';
+
 /// A record type that defines the precise behavior of a JavaScript property.
 ///
-/// This can be passed to [JSObjectUnsafeExtension.defineProperties] or
-/// [JSObjectUnsafeExtension.defineProperty], and it's returned by
-/// [JSObjectUnsafeExtension.getOwnPropertyDescriptor] and
-/// [JSObjectUnsafeExtension.ownPropretyDescriptors]. See [the MDN
+/// This can be passed to [JSObjectUnsafeExtension.defineProperty] and it's
+/// returned by [JSObjectUnsafeExtension.getOwnPropertyDescriptor]. See [the MDN
 /// documentation] for details.
 ///
 /// [the MDN documentation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty#description
-extension type JSPropertyDescriptor.__(JSObject _) implements JSObject {
-  external JSPropertyDescriptor._({
+extension type JSPropertyDescriptor._(JSObject _) implements JSObject {
+  external JSPropertyDescriptor._internal({
     bool? configurable,
     bool? enumerable,
     JSAny? value,
@@ -27,7 +27,7 @@ extension type JSPropertyDescriptor.__(JSObject _) implements JSObject {
     JSAny? Function(T thisArg) body, {
     bool configurable = false,
     bool enumerable = false,
-  }) => JSPropertyDescriptor._(
+  }) => JSPropertyDescriptor._internal(
     configurable: configurable,
     enumerable: enumerable,
     get: body.toJSCaptureThis,
@@ -41,7 +41,7 @@ extension type JSPropertyDescriptor.__(JSObject _) implements JSObject {
     void Function(T thisArg, V value) body, {
     bool configurable = false,
     bool enumerable = false,
-  }) => JSPropertyDescriptor._(
+  }) => JSPropertyDescriptor._internal(
     configurable: configurable,
     enumerable: enumerable,
     set: body.toJSCaptureThis,
@@ -56,7 +56,7 @@ extension type JSPropertyDescriptor.__(JSObject _) implements JSObject {
     void Function(T thisArg, V value) setter, {
     bool configurable = false,
     bool enumerable = false,
-  }) => JSPropertyDescriptor._(
+  }) => JSPropertyDescriptor._internal(
     configurable: configurable,
     enumerable: enumerable,
     get: getter.toJSCaptureThis,
@@ -70,7 +70,7 @@ extension type JSPropertyDescriptor.__(JSObject _) implements JSObject {
     bool configurable = false,
     bool enumerable = false,
     bool writable = false,
-  }) => JSPropertyDescriptor._(
+  }) => JSPropertyDescriptor._internal(
     configurable: configurable,
     enumerable: enumerable,
     value: value,
