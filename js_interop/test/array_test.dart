@@ -4,9 +4,8 @@
 
 import 'dart:js_interop';
 
-import 'package:test/test.dart';
-
 import 'package:js_interop/js_interop.dart';
+import 'package:test/test.dart';
 
 void main() {
   late JSArray<JSNumber> array;
@@ -131,7 +130,7 @@ void main() {
 
   group('flat', () {
     test('without depth', () {
-      var result =
+      final result =
           [
                 [
                   [1.toJS].toJS,
@@ -154,7 +153,7 @@ void main() {
     );
 
     test('flatOnce', () {
-      var result = [
+      final result = [
         [
           [1.toJS].toJS,
         ].toJS,
@@ -184,9 +183,8 @@ void main() {
     () => expect(
       _toDart(
         array.flatMapHeterogeneous(
-              (i) => i.toDartInt % 2 == 1 ? i : [i, i].toJS,
-            )
-            as JSArray<JSNumber>,
+          (i) => i.toDartInt % 2 == 1 ? i : [i, i].toJS,
+        ) as JSArray<JSNumber>,
       ),
       equals([1, 2, 2, 3, 4, 4, 5]),
     ),
@@ -197,9 +195,8 @@ void main() {
     () => expect(
       _toDart(
         array.flatMapHeterogeneousWithIndex(
-              (i, index) => i.toDartInt % 2 == 1 ? i : [index.toJS, i].toJS,
-            )
-            as JSArray<JSNumber>,
+          (i, index) => i.toDartInt % 2 == 1 ? i : [index.toJS, i].toJS,
+        ) as JSArray<JSNumber>,
       ),
       equals([1, 1, 2, 3, 3, 4, 5]),
     ),
@@ -369,7 +366,7 @@ void main() {
 
   group('slice', () {
     test('with no arguments', () {
-      var copy = array.slice();
+      final copy = array.slice();
       copy[0] = (-1).toJS;
       expect(_toDart(copy), equals([-1, 2, 3, 4, 5]));
       expect(_toDart(array), equals([1, 2, 3, 4, 5]));
@@ -397,30 +394,30 @@ void main() {
   );
 
   group('sort', () {
-    test("with no argument", () {
+    test('with no argument', () {
       array.reverse();
       array.sort();
       expect(_toDart(array), equals([1, 2, 3, 4, 5]));
     });
 
-    test("with an argument", () {
+    test('with an argument', () {
       array.sort((i1, i2) => i2.toDartInt - i1.toDartInt);
       expect(_toDart(array), equals([5, 4, 3, 2, 1]));
     });
   });
 
   group('splice', () {
-    test("with one argument", () {
+    test('with one argument', () {
       expect(_toDart(array.splice(3)), equals([4, 5]));
       expect(_toDart(array), equals([1, 2, 3]));
     });
 
-    test("with two arguments", () {
+    test('with two arguments', () {
       expect(_toDart(array.splice(3, 1)), equals([4]));
       expect(_toDart(array), equals([1, 2, 3, 5]));
     });
 
-    test("with three arguments", () {
+    test('with three arguments', () {
       expect(_toDart(array.splice(3, 1, (-1).toJS)), equals([4]));
       expect(_toDart(array), equals([1, 2, 3, -1, 5]));
     });
@@ -432,13 +429,13 @@ void main() {
   );
 
   group('toSorted', () {
-    test("with no argument", () {
+    test('with no argument', () {
       array.reverse();
       expect(_toDart(array.toSorted()), equals([1, 2, 3, 4, 5]));
       expect(_toDart(array), equals([5, 4, 3, 2, 1]));
     });
 
-    test("with an argument", () {
+    test('with an argument', () {
       expect(
         _toDart(array.toSorted((i1, i2) => i2.toDartInt - i1.toDartInt)),
         equals([5, 4, 3, 2, 1]),
@@ -449,17 +446,17 @@ void main() {
 
   group('toSpliced', () {
     test(
-      "with one argument",
+      'with one argument',
       () => expect(_toDart(array.toSpliced(3)), equals([1, 2, 3])),
     );
 
     test(
-      "with two arguments",
+      'with two arguments',
       () => expect(_toDart(array.toSpliced(3, 1)), equals([1, 2, 3, 5])),
     );
 
     test(
-      "with three arguments",
+      'with three arguments',
       () => expect(
         _toDart(array.toSpliced(3, 1, (-1).toJS)),
         equals([1, 2, 3, -1, 5]),
