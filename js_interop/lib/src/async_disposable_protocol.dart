@@ -44,7 +44,7 @@ extension JSAsyncDisposableUse<T extends JSAsyncDisposableProtocol> on T {
   ///   });
   /// }
   /// ```
-  Future<R> use<R>(FutureOr<R> Function(T) callback) => Future.sync(
-    () => callback(this),
-  ).whenComplete(() => asyncDispose().toDart);
+  Future<R> use<R>(FutureOr<R> Function(T) callback) =>
+      Future.sync(() => callback(this))
+          .whenComplete(() => asyncDispose().toDart);
 }
